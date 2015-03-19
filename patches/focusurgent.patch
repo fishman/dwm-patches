@@ -1,0 +1,30 @@
+diff -u -uN dwm.orig/focusurgent.c dwm/focusurgent.c
+--- dwm.orig/focusurgent.c	1970-01-01 01:00:00.000000000 +0100
++++ dwm/focusurgent.c	2015-03-19 23:19:25.794530544 +0000
+@@ -0,0 +1,26 @@
++void
++focusurgent(const Arg *arg) {
++	Client *c;
++	Monitor *m;
++	unsigned int i;
++
++	for(m = mons; m; m = m->next) {
++		for(c = m->clients; c; c = c->next) {
++			if(c->isurgent) {
++				selmon = m;
++				if(!ISVISIBLE(c)) {
++					selmon->seltags ^= 1;
++					selmon->tagset[selmon->seltags] = c->tags;
++					selmon->prevtag = selmon->curtag;
++					for(i=0; !(c->tags & 1 << i); i++);
++					selmon->curtag = i + 1;
++					selmon->lt[selmon->sellt] = selmon->lts[selmon->curtag];
++				}
++				focus(c);
++				arrange(selmon);
++				return;
++			}
++		}
++	}
++}
++
