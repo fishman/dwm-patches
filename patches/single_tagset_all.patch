@@ -1,23 +1,6 @@
-Author: Jan Christoph Ebersbach <jceb@e-jc.de>
-URL: http://dwm.suckless.org/patches/single_tagset
-This patch addresses the multi-monitor setup. Instead of having separate tags
-for every monitor there is just one list of tags for all monitors. Instead of
-moving windows from one monitor to the other, the desired tag from the
-other monitor can just be selected and all windows will be drawn on the
-current monitor.
-
-Several deep changes needed to be made:
-1. Macro ISVISIBLE expects a second parameter, the monitor
-2. Monitor->clients and Monitor->stack were moved to the global variable
-   Clientlist cl. All monitors refer to this one list.
-3. A new method attachclients was added. When changing between tags this
-   function ensures that all clients are pointing to the right monitor.
-
-Please be aware that this patch probably breaks any other patch!
-
-Index: dwm/dwm.c
-===================================================================
---- dwm/dwm.c.orig
+diff --git dwm/dwm.c dwm/dwm.c
+index ed7d746..96eeaca 100644
+--- dwm/dwm.c
 +++ dwm/dwm.c
 @@ -48,7 +48,7 @@
  #define CLEANMASK(mask)         (mask & ~(numlockmask|LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
@@ -28,15 +11,15 @@ Index: dwm/dwm.c
  #define LENGTH(X)               (sizeof X / sizeof X[0])
  #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
  #define WIDTH(X)                ((X)->w + 2 * (X)->bw)
-@@ -112,6 +112,7 @@ typedef struct {
+@@ -111,6 +111,7 @@ typedef struct {
+ 	void (*arrange)(Monitor *);
  } Layout;
  
- typedef struct Pertag Pertag;
 +typedef struct Clientlist Clientlist;
  struct Monitor {
  	char ltsymbol[16];
- 	float mfact;
-@@ -125,9 +126,8 @@ struct Monitor {
+ 	int num;
+@@ -122,9 +123,8 @@ struct Monitor {
  	unsigned int tagset[2];
  	Bool showbar;
  	Bool topbar;
@@ -47,7 +30,7 @@ Index: dwm/dwm.c
  	Monitor *next;
  	Window barwin;
  	const Layout *lt[2];
-@@ -143,6 +143,11 @@ typedef struct {
+@@ -151,6 +151,11 @@ typedef struct {
  	int monitor;
  } Rule;
  
@@ -59,7 +42,7 @@ Index: dwm/dwm.c
  /* function declarations */
  static void applyrules(Client *c);
  static Bool applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact);
-@@ -150,6 +155,7 @@ static void arrange(Monitor *m);
+@@ -158,6 +163,7 @@ static void arrange(Monitor *m);
  static void arrangemon(Monitor *m);
  static void attach(Client *c);
  static void attachabove(Client *c);
@@ -67,7 +50,7 @@ Index: dwm/dwm.c
  static void attachstack(Client *c);
  static void buttonpress(XEvent *e);
  static void checkotherwm(void);
-@@ -187,7 +193,7 @@ static void maprequest(XEvent *e);
+@@ -195,7 +201,7 @@ static void maprequest(XEvent *e);
  static void monocle(Monitor *m);
  static void motionnotify(XEvent *e);
  static void movemouse(const Arg *arg);
@@ -76,7 +59,7 @@ Index: dwm/dwm.c
  static void pop(Client *);
  static void propertynotify(XEvent *e);
  static void quit(const Arg *arg);
-@@ -273,6 +279,7 @@ static Drw *drw;
+@@ -282,6 +288,7 @@ static Drw *drw;
  static Fnt *fnt;
  static Monitor *mons, *selmon;
  static Window root;
@@ -84,7 +67,7 @@ Index: dwm/dwm.c
  
  /* configuration, allows nested code to access above variables */
  #include "config.h"
-@@ -313,7 +320,7 @@ applyrules(Client *c) {
+@@ -312,7 +319,7 @@ applyrules(Client *c) {
  		{
  			c->isfloating = r->isfloating;
  			c->tags |= r->tags;
@@ -93,7 +76,7 @@ Index: dwm/dwm.c
  			if(m)
  				c->mon = m;
  		}
-@@ -394,9 +401,9 @@ applysizehints(Client *c, int *x, int *y
+@@ -393,9 +400,9 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, Bool interact) {
  void
  arrange(Monitor *m) {
  	if(m)
@@ -105,7 +88,7 @@ Index: dwm/dwm.c
  	if(m) {
  		arrangemon(m);
  		restack(m);
-@@ -413,27 +420,60 @@ arrangemon(Monitor *m) {
+@@ -412,27 +419,60 @@ arrangemon(Monitor *m) {
  
  void
  attach(Client *c) {
@@ -172,7 +155,7 @@ Index: dwm/dwm.c
  }
  
  void
-@@ -496,8 +536,8 @@ cleanup(void) {
+@@ -495,8 +535,8 @@ cleanup(void) {
  	view(&a);
  	selmon->lt[selmon->sellt] = &foo;
  	for(m = mons; m; m = m->next)
@@ -183,7 +166,7 @@ Index: dwm/dwm.c
  	XUngrabKey(dpy, AnyKey, AnyModifier, root);
  	while(mons)
  		cleanupmon(mons);
-@@ -558,7 +598,7 @@ clientmessage(XEvent *e) {
+@@ -560,7 +600,7 @@ clientmessage(XEvent *e) {
  			              || (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */ && !c->isfullscreen)));
  	}
  	else if(cme->message_type == netatom[NetActiveWindow]) {
@@ -191,8 +174,8 @@ Index: dwm/dwm.c
 +		if(!ISVISIBLE(c, c->mon)) {
  			c->mon->seltags ^= 1;
  			c->mon->tagset[c->mon->seltags] = c->tags;
- 			for(i=0; !(c->tags & 1 << i); i++);
-@@ -642,7 +682,7 @@ configurerequest(XEvent *e) {
+ 			c->mon->prevtag = c->mon->curtag;
+@@ -646,7 +686,7 @@ configurerequest(XEvent *e) {
  				c->y = m->my + (m->mh / 2 - HEIGHT(c) / 2); /* center in y direction */
  			if((ev->value_mask & (CWX|CWY)) && !(ev->value_mask & (CWWidth|CWHeight)))
  				configure(c);
@@ -201,16 +184,19 @@ Index: dwm/dwm.c
  				XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
  		}
  		else
-@@ -663,12 +703,18 @@ configurerequest(XEvent *e) {
+@@ -667,7 +707,7 @@ configurerequest(XEvent *e) {
  
  Monitor *
  createmon(void) {
 -	Monitor *m;
 +	Monitor *m, *tm;
- 	int i;
+ 	int i, numtags = LENGTH(tags) + 1;
  
  	if(!(m = (Monitor *)calloc(1, sizeof(Monitor))))
- 		die("fatal: could not malloc() %u bytes\n", sizeof(Monitor));
+@@ -678,7 +718,13 @@ createmon(void) {
+ 		die("fatal: could not malloc() %u bytes\n", sizeof(int) * numtags);
+ 	if(!(m->lts = calloc(numtags, sizeof(Layout *))))
+ 		die("fatal: could not malloc() %u bytes\n", sizeof(Layout *) * numtags);
 -	m->tagset[0] = m->tagset[1] = 1;
 +	m->cl = cl;
 +	/* reassing tags when creating a new monitor */
@@ -219,10 +205,10 @@ Index: dwm/dwm.c
 +		tm->tagset[tm->seltags] = i;
 +	}
 +	m->tagset[0] = m->tagset[1] = i;
- 	m->mfact = mfact;
- 	m->nmaster = nmaster;
- 	m->showbar = showbar;
-@@ -713,7 +759,7 @@ void
+ 	m->mfacts[0] = mfact;
+ 	m->nmasters[0] = nmaster;
+ 	m->lts[0] = &layouts[0];
+@@ -709,7 +755,7 @@ void
  detach(Client *c) {
  	Client **tc;
  
@@ -231,7 +217,7 @@ Index: dwm/dwm.c
  	*tc = c->next;
  }
  
-@@ -721,11 +767,11 @@ void
+@@ -717,11 +763,11 @@ void
  detachstack(Client *c) {
  	Client **tc, *t;
  
@@ -245,7 +231,7 @@ Index: dwm/dwm.c
  		c->mon->sel = t;
  	}
  }
-@@ -751,7 +797,7 @@ drawbar(Monitor *m) {
+@@ -747,7 +793,7 @@ drawbar(Monitor *m) {
  	unsigned int i, occ = 0, urg = 0;
  	Client *c;
  
@@ -254,7 +240,7 @@ Index: dwm/dwm.c
  		occ |= c->tags;
  		if(c->isurgent)
  			urg |= c->tags;
-@@ -830,8 +876,8 @@ expose(XEvent *e) {
+@@ -826,8 +872,8 @@ expose(XEvent *e) {
  
  void
  focus(Client *c) {
@@ -265,7 +251,7 @@ Index: dwm/dwm.c
  	/* was if(selmon->sel) */
  	if(selmon->sel && selmon->sel != c)
  		unfocus(selmon->sel, False);
-@@ -886,17 +932,17 @@ focusstack(const Arg *arg) {
+@@ -882,17 +928,17 @@ focusstack(const Arg *arg) {
  	if(!selmon->sel)
  		return;
  	if(arg->i > 0) {
@@ -288,7 +274,7 @@ Index: dwm/dwm.c
  					c = i;
  	}
  	if(c) {
-@@ -1157,12 +1203,12 @@ monocle(Monitor *m) {
+@@ -1153,12 +1199,12 @@ monocle(Monitor *m) {
  	unsigned int n = 0, r = 0;
  	Client *c;
  
@@ -304,7 +290,7 @@ Index: dwm/dwm.c
  		/* remove border when in monocle layout */
  		if(c->bw) {
  			c->oldbw = c->bw;
-@@ -1254,8 +1300,8 @@ movemouse(const Arg *arg) {
+@@ -1250,8 +1296,8 @@ movemouse(const Arg *arg) {
  }
  
  Client *
@@ -315,7 +301,7 @@ Index: dwm/dwm.c
  	return c;
  }
  
-@@ -1413,8 +1459,8 @@ restack(Monitor *m) {
+@@ -1409,8 +1455,8 @@ restack(Monitor *m) {
  	if(m->lt[m->sellt]->arrange) {
  		wc.stack_mode = Below;
  		wc.sibling = m->barwin;
@@ -326,7 +312,7 @@ Index: dwm/dwm.c
  				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
  				wc.sibling = c->win;
  			}
-@@ -1464,11 +1510,9 @@ sendmon(Client *c, Monitor *m) {
+@@ -1460,11 +1506,9 @@ sendmon(Client *c, Monitor *m) {
  	if(c->mon == m)
  		return;
  	unfocus(c, True);
@@ -338,7 +324,7 @@ Index: dwm/dwm.c
  	attachstack(c);
  	focus(NULL);
  	arrange(NULL);
-@@ -1589,6 +1633,8 @@ setup(void) {
+@@ -1582,6 +1626,8 @@ setup(void) {
  	sw = DisplayWidth(dpy, screen);
  	sh = DisplayHeight(dpy, screen);
  	bh = fnt->h + 2;
@@ -347,7 +333,7 @@ Index: dwm/dwm.c
  	drw = drw_create(dpy, screen, root, sw, sh);
  	drw_setfont(drw, fnt);
  	updategeom();
-@@ -1639,7 +1685,7 @@ void
+@@ -1632,7 +1678,7 @@ void
  showhide(Client *c) {
  	if(!c)
  		return;
@@ -356,7 +342,7 @@ Index: dwm/dwm.c
  		XMoveWindow(dpy, c->win, c->x, c->y);
  		if((!c->mon->lt[c->mon->sellt]->arrange || c->isfloating) && !c->isfullscreen)
  			resize(c, c->x, c->y, c->w, c->h, False);
-@@ -1676,7 +1722,7 @@ spawn(const Arg *arg) {
+@@ -1669,7 +1715,7 @@ spawn(const Arg *arg) {
  void
  swapfocus(){
  	Client *c;
@@ -365,7 +351,7 @@ Index: dwm/dwm.c
  	if(c == prevclient) {
  		focus(prevclient);
  		restack(prevclient->mon);
-@@ -1685,7 +1731,22 @@ swapfocus(){
+@@ -1678,7 +1724,22 @@ swapfocus(){
  
  void
  tag(const Arg *arg) {
@@ -388,7 +374,7 @@ Index: dwm/dwm.c
  		selmon->sel->tags = arg->ui & TAGMASK;
  		focus(NULL);
  		arrange(selmon);
-@@ -1704,7 +1765,7 @@ tile(Monitor *m) {
+@@ -1697,7 +1758,7 @@ tile(Monitor *m) {
  	unsigned int i, n, h, mw, my, ty, r;
  	Client *c;
  
@@ -397,8 +383,8 @@ Index: dwm/dwm.c
  	if(n == 0)
  		return;
  
-@@ -1712,7 +1773,7 @@ tile(Monitor *m) {
- 		mw = m->nmaster ? m->ww * m->mfact : 0;
+@@ -1705,7 +1766,7 @@ tile(Monitor *m) {
+ 		mw = m->nmasters[m->curtag] ? m->ww * m->mfacts[m->curtag] : 0;
  	else
  		mw = m->ww;
 -	for(i = my = ty = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++, r = 0) {
@@ -406,12 +392,12 @@ Index: dwm/dwm.c
  		if(n == 1) {
  			if (c->bw) {
  				/* remove border when only one window is on the current tag */
-@@ -1785,12 +1846,17 @@ togglefloating(const Arg *arg) {
+@@ -1778,12 +1839,17 @@ togglefloating(const Arg *arg) {
  
  void
  toggletag(const Arg *arg) {
 +	Monitor *m;
- 	unsigned int newtags;
+ 	unsigned int i, newtags;
  
  	if(!selmon->sel)
  		return;
@@ -422,33 +408,26 @@ Index: dwm/dwm.c
 +			if(m != selmon && newtags & m->tagset[m->seltags])
 +				return;
  		selmon->sel->tags = newtags;
- 		focus(NULL);
- 		arrange(selmon);
-@@ -1799,10 +1865,15 @@ toggletag(const Arg *arg) {
+ 		if(newtags == ~0) {
+ 			selmon->prevtag = selmon->curtag;
+@@ -1803,10 +1869,16 @@ toggletag(const Arg *arg) {
  
  void
  toggleview(const Arg *arg) {
 +	Monitor *m;
  	unsigned int newtagset = selmon->tagset[selmon->seltags] ^ (arg->ui & TAGMASK);
- 	int i;
  
  	if(newtagset) {
 +		/* prevent displaying the same tags on multiple monitors */
 +		for(m = mons; m; m = m->next)
 +			if(m != selmon && newtagset & m->tagset[m->seltags])
 +				return;
- 		if(newtagset == ~0) {
- 			selmon->pertag->prevtag = selmon->pertag->curtag;
- 			selmon->pertag->curtag = 0;
-@@ -1821,6 +1892,7 @@ toggleview(const Arg *arg) {
- 		selmon->sellt = selmon->pertag->sellts[selmon->pertag->curtag];
- 		selmon->lt[selmon->sellt] = selmon->pertag->ltidxs[selmon->pertag->curtag][selmon->sellt];
- 		selmon->lt[selmon->sellt^1] = selmon->pertag->ltidxs[selmon->pertag->curtag][selmon->sellt^1];
+ 		selmon->tagset[selmon->seltags] = newtagset;
 +		attachclients(selmon);
- 		if (selmon->showbar != selmon->pertag->showbars[selmon->pertag->curtag])
- 			togglebar(NULL);
  		focus(NULL);
-@@ -1918,7 +1990,7 @@ updateclientlist() {
+ 		arrange(selmon);
+ 	}
+@@ -1902,7 +1974,7 @@ updateclientlist() {
  
  	XDeleteProperty(dpy, root, netatom[NetClientList]);
  	for(m = mons; m; m = m->next)
@@ -457,7 +436,7 @@ Index: dwm/dwm.c
  			XChangeProperty(dpy, root, netatom[NetClientList],
  			                XA_WINDOW, 32, PropModeAppend,
  			                (unsigned char *) &(c->win), 1);
-@@ -1948,8 +2020,10 @@ updategeom(void) {
+@@ -1932,8 +2004,10 @@ updategeom(void) {
  		if(n <= nn) {
  			for(i = 0; i < (nn - n); i++) { /* new monitors available */
  				for(m = mons; m && m->next; m = m->next);
@@ -469,7 +448,7 @@ Index: dwm/dwm.c
  				else
  					mons = createmon();
  			}
-@@ -1970,17 +2044,13 @@ updategeom(void) {
+@@ -1954,17 +2028,13 @@ updategeom(void) {
  		else { /* less monitors available nn < n */
  			for(i = nn; i < n; i++) {
  				for(m = mons; m && m->next; m = m->next);
@@ -492,14 +471,13 @@ Index: dwm/dwm.c
  				cleanupmon(m);
  			}
  		}
-@@ -2120,11 +2190,30 @@ updatewmhints(Client *c) {
+@@ -2104,10 +2174,29 @@ updatewmhints(Client *c) {
  
  void
  view(const Arg *arg) {
 +	Monitor *m;
 +	unsigned int newtagset = selmon->tagset[selmon->seltags ^ 1];
- 	int i;
- 	unsigned int tmptag;
+ 	unsigned int i;
  
  	if((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
  		return;
@@ -522,16 +500,16 @@ Index: dwm/dwm.c
 +
  	selmon->seltags ^= 1; /* toggle sel tagset */
  	if(arg->ui & TAGMASK) {
- 		selmon->pertag->prevtag = selmon->pertag->curtag;
-@@ -2145,6 +2234,7 @@ view(const Arg *arg) {
- 	selmon->sellt = selmon->pertag->sellts[selmon->pertag->curtag];
- 	selmon->lt[selmon->sellt] = selmon->pertag->ltidxs[selmon->pertag->curtag][selmon->sellt];
- 	selmon->lt[selmon->sellt^1] = selmon->pertag->ltidxs[selmon->pertag->curtag][selmon->sellt^1];
+ 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+@@ -2124,6 +2213,7 @@ view(const Arg *arg) {
+ 		selmon->prevtag= selmon->curtag ^ selmon->prevtag;
+ 	}
+ 	selmon->lt[selmon->sellt]= selmon->lts[selmon->curtag];
 +	attachclients(selmon);
- 	if (selmon->showbar != selmon->pertag->showbars[selmon->pertag->curtag])
- 		togglebar(NULL);
  	focus(NULL);
-@@ -2157,7 +2247,7 @@ wintoclient(Window w) {
+ 	arrange(selmon);
+ }
+@@ -2134,7 +2224,7 @@ wintoclient(Window w) {
  	Monitor *m;
  
  	for(m = mons; m; m = m->next)
@@ -540,7 +518,7 @@ Index: dwm/dwm.c
  			if(c->win == w)
  				return c;
  	return NULL;
-@@ -2215,24 +2305,24 @@ xerrorstart(Display *dpy, XErrorEvent *e
+@@ -2192,24 +2282,24 @@ xerrorstart(Display *dpy, XErrorEvent *ee) {
  void
  zoom(const Arg *arg) {
  	Client *c = selmon->sel;
@@ -553,12 +531,12 @@ Index: dwm/dwm.c
  		return;
 -	if(c == nexttiled(selmon->clients)) {
 +	if(c == nexttiled(selmon->cl->clients, selmon)) {
- 		at = findbefore(selmon->pertag->prevzooms[selmon->pertag->curtag]);
+ 		at = findbefore(prevzoom);
  		if(at)
 -			cprevious = nexttiled(at->next);
 +			cprevious = nexttiled(at->next, selmon);
- 		if(!cprevious || cprevious != selmon->pertag->prevzooms[selmon->pertag->curtag]) {
- 			selmon->pertag->prevzooms[selmon->pertag->curtag] = NULL;
+ 		if(!cprevious || cprevious != prevzoom) {
+ 			prevzoom = NULL;
 -			if(!c || !(c = prevclient = nexttiled(c->next)))
 +			if(!c || !(c = prevclient = nexttiled(c->next, selmon)))
  				return;
@@ -570,9 +548,9 @@ Index: dwm/dwm.c
  	if(c != cold && !at)
  		at = findbefore(c);
  	detach(c);
-Index: dwm/focusmaster.c
-===================================================================
---- dwm/focusmaster.c.orig
+diff --git dwm/focusmaster.c dwm/focusmaster.c
+index 9b397c7..73ab5bf 100644
+--- dwm/focusmaster.c
 +++ dwm/focusmaster.c
 @@ -1,4 +1,4 @@
  static void
@@ -580,9 +558,9 @@ Index: dwm/focusmaster.c
 -	focus(nexttiled(selmon->clients));
 +	focus(nexttiled(selmon->cl->clients, selmon));
  }
-Index: dwm/gaplessgrid.c
-===================================================================
---- dwm/gaplessgrid.c.orig
+diff --git dwm/gaplessgrid.c dwm/gaplessgrid.c
+index 10808c5..4ad62e4 100644
+--- dwm/gaplessgrid.c
 +++ dwm/gaplessgrid.c
 @@ -3,7 +3,7 @@ gaplessgrid(Monitor *m) {
  	unsigned int n, cols, rows, cn, rn, i, cx, cy, cw, ch;
@@ -602,9 +580,9 @@ Index: dwm/gaplessgrid.c
  		if(i/rows + 1 > cols - n%cols)
  			rows = n/cols + 1;
  		ch = rows ? m->wh / rows : m->wh;
-Index: dwm/push.c
-===================================================================
---- dwm/push.c.orig
+diff --git dwm/push.c dwm/push.c
+index 493613c..4b5df20 100644
+--- dwm/push.c
 +++ dwm/push.c
 @@ -2,8 +2,8 @@ static Client *
  prevtiled(Client *c) {
@@ -640,9 +618,9 @@ Index: dwm/push.c
  		/* attach after c */
  		detach(sel);
  		sel->next = c->next;
-Index: dwm/tagall.c
-===================================================================
---- dwm/tagall.c.orig
+diff --git dwm/tagall.c dwm/tagall.c
+index dbc2137..4b8374b 100644
+--- dwm/tagall.c
 +++ dwm/tagall.c
 @@ -1,6 +1,6 @@
  void
@@ -661,9 +639,9 @@ Index: dwm/tagall.c
  		{
  			if(!floating_only || c->isfloating)
  				for(j = 0; j < LENGTH(tags); j++)
-Index: dwm/toggleview_focus.c
-===================================================================
---- dwm/toggleview_focus.c.orig
+diff --git dwm/toggleview_focus.c dwm/toggleview_focus.c
+index 7b1137d..de61794 100644
+--- dwm/toggleview_focus.c
 +++ dwm/toggleview_focus.c
 @@ -1,7 +1,7 @@
  static void toggleview_focus(const Arg *arg) {
@@ -674,9 +652,9 @@ Index: dwm/toggleview_focus.c
  	if(c && c->tags & arg->ui)
  		focus(c);
  }
-Index: dwm/zoomswap.c
-===================================================================
---- dwm/zoomswap.c.orig
+diff --git dwm/zoomswap.c dwm/zoomswap.c
+index 8e52c04..84e4b52 100644
+--- dwm/zoomswap.c
 +++ dwm/zoomswap.c
 @@ -3,8 +3,8 @@ static Client * findbefore(Client *c);
  Client *
