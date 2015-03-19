@@ -20,7 +20,7 @@ configh_swapfocus.patch -p0 #+personal_configh
 zoomswap.patch -p0
 gaplessgrid.patch -p0
 configh_gaplesssgrid.patch -p0 #+personal_configh
-pertag.patch -p0
+pertag2.patch -p0
 single_window_no_border.patch -p0
 attachabove.patch -p0
 configh_push.patch -p0 #+personal_configh
