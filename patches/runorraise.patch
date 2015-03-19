@@ -1,0 +1,27 @@
+diff -u -uN dwm/runorraise.c dwm/runorraise.c
+--- dwm/runorraise.c	1970-01-01 01:00:00.000000000 +0100
++++ dwm/runorraise.c	2015-03-19 23:35:28.427828714 +0000
+@@ -0,0 +1,23 @@
++void
++runorraise(const Arg *arg) {
++  char *app = ((char **)arg->v)[4];
++  Arg a = { .ui = ~0 };
++  Monitor *mon;
++  Client *c;
++  XClassHint hint = { NULL, NULL };
++  /* Tries to find the client */
++  for (mon = mons; mon; mon = mon->next) {
++    for (c = mon->cl->clients; c; c = c->next) {
++      XGetClassHint(dpy, c->win, &hint);
++      if (hint.res_class && strcmp(app, hint.res_class) == 0) {
++        a.ui = c->tags;
++        view(&a);
++        focus(c);
++        XRaiseWindow(dpy, c->win);
++        return;
++      }
++    }
++  }
++  /* Client not found: spawn it */
++  spawn(arg);
++}

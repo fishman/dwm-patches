@@ -34,3 +34,6 @@ single_tagset_all.patch -p0
 keepfloatingposition.patch
 systray.patch -p0
 focusurgent.patch -p0
+pidgin.patch -p0
+runorraise.patch -p0
+scratchpad.patch -p0
