@@ -1,0 +1,70 @@
+diff -u -uN dwm.orig/dwm.c dwm/dwm.c
+--- dwm.orig/dwm.c	2015-03-19 23:36:30.714493105 +0000
++++ dwm/dwm.c	2015-03-19 23:52:00.907792459 +0000
+@@ -1245,6 +1245,14 @@
+ 	           && (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
+ 	c->bw = borderpx;
+ 
++	if(!strcmp(c->name, scratchpadname)) {
++		c->mon->tagset[c->mon->seltags] |= c->tags = scratchtag;
++		c->isfloating = True;
++		c->x = c->mon->wx + (c->mon->ww / 2 - WIDTH(c) / 2);
++		c->y = c->mon->wy + (c->mon->wh / 2 - HEIGHT(c) / 2);
++	}
++	else
++		c->tags &= TAGMASK;
+ 	wc.border_width = c->bw;
+ 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
+ 	if(c->isfloating)
+diff -u -uN dwm.orig/scratchpad.c dwm/scratchpad.c
+--- dwm.orig/scratchpad.c	1970-01-01 01:00:00.000000000 +0100
++++ dwm/scratchpad.c	2015-03-19 23:52:49.617790682 +0000
+@@ -0,0 +1,23 @@
++static unsigned int scratchtag = 1 << LENGTH(tags);
++
++void
++togglescratch(const Arg *arg) {
++	Client *c = NULL;
++	unsigned int found = 0;
++
++	for(c = selmon->cl->clients; c && !(found = c->tags & scratchtag); c = c->next);
++	if(found) {
++		unsigned int newtagset = selmon->tagset[selmon->seltags] ^ scratchtag;
++		if(newtagset) {
++			selmon->tagset[selmon->seltags] = newtagset;
++			focus(NULL);
++			arrange(selmon);
++		}
++		if(ISVISIBLE(c, c->mon)) {
++			focus(c);
++			restack(selmon);
++		}
++	}
++	else
++		spawn(arg);
++}
+diff --git dwm/config.def.h dwm/config.def.h
+index 7ab6ae7..b132ca5 100644
+--- dwm/config.def.h
++++ dwm/config.def.h
+@@ -78,6 +78,9 @@ static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn()
+ static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, "-fn", font, "-nb", normbgcolor, "-nf", normfgcolor, "-sb", selbgcolor, "-sf", selfgcolor, NULL };
+ static const char *termcmd[]  = { "x-terminal-emulator", NULL };
+ 
++static const char scratchpadname[] = "scratchpad";
++static const char *scratchpadcmd[] = { "x-terminal-emulator", "-name", scratchpadname, "-geometry", "150x28", NULL };
++
+ #include "toggleview_focus.c"
+ #include "moveresize.c"
+ #include "tagall.c"
+@@ -88,8 +91,10 @@ static const char *termcmd[]  = { "x-terminal-emulator", NULL };
+ #include "shifttags.c"
+ #include "keepfloatingposition.c"
+ #include "focusurgent.c"
++#include "scratchpad.c"
+ static Key keys[] = {
+ 	/* modifier                     key        function        argument */
++	{ MODKEY,                       XK_grave,  togglescratch,  {.v = scratchpadcmd} },
+ 	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
+ 	{ MODKEY|ShiftMask,             XK_Return, spawn,          {.v = termcmd } },
+ 	{ MODKEY,                       XK_b,      togglebar,      {0} },
