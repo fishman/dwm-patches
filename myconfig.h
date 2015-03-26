@@ -2,14 +2,15 @@
 
 /* appearance */
 static const char font[]            = "-*-terminus-medium-r-*-*-20-*-*-*-*-*-*-*";
-static const char normfgcolor[]     = "#bbbbbb";
-static const char selbordercolor[]  = "#005577";
-// static const char selbgcolor[]      = "#005577";
-static const char selfgcolor[]      = "#eeeeee";
-static const char normbordercolor[]  = "#282a2e";
-static const char normbgcolor[]      = "#282a2e";
-static const char selbgcolor[]       = "#1d1f21";
-static const char urgentbgcolor[]    = "#f0c674";
+static const char normbordercolor[] = "#1A1A1A";
+static const char normfgcolor[]     = "#FFFFFF";
+static const char normbgcolor[]     = "#303030";
+static const char selbordercolor[]  = "#17bbe3";
+static const char selfgcolor[]      = "#98CBFE";
+static const char selbgcolor[]      = "#3F3F3F";
+static const char urgentbordercolor[] = "#B3354C";
+static const char urgentfgcolor[]     = "#303030";
+static const char urgentbgcolor[]     = "#D370A3";
 static const char floatnormbordercolor[] = "#885599";
 static const char floatselbordercolor[]  = "#880000";
 static const unsigned int borderpx  = 1;        /* border pixel of windows */
@@ -58,6 +59,7 @@ static const Rule rules[] = {
 	{ "Idaq64",       NULL,        NULL,       1 << 4,       False,       -1 },
 	{ "VBoxSDL",      NULL,        NULL,       1 << 5,       False,       -1 },
 	{ "Wine",         NULL,        NULL,       1 << 5,       False,       -1 },
+	{ "Corebird",     NULL,        NULL,       1 << 4,       True,        -1 },
 	{ "Xephyr",       NULL,        NULL,       0,            False,       -1 },
 	{ "Opera",        NULL,        NULL,       1 << 2,       False,       -1 },
   { "Pidgin",       NULL,        NULL,       1 << 3,       False,       -1 },
