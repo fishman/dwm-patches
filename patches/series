@@ -39,3 +39,4 @@ runorraise.patch -p0
 scratchpad.patch -p0
 status2d.patch -p0
 fancybar.patch -p0
+urgentcolor.patch -p0

@@ -1,0 +1,62 @@
+diff --git dwm/config.def.h dwm/config.def.h
+index b132ca5..0c32c9c 100644
+--- dwm/config.def.h
++++ dwm/config.def.h
+@@ -8,6 +8,9 @@ static const char normfgcolor[]     = "#bbbbbb";
+ static const char selbordercolor[]  = "#ff0000";
+ static const char selbgcolor[]      = "#005577";
+ static const char selfgcolor[]      = "#eeeeee";
++static const char urgentbordercolor[] = "#B3354C";
++static const char urgentfgcolor[]     = "#303030";
++static const char urgentbgcolor[]     = "#D370A3";
+ static const char floatnormbordercolor[] = "#885599";
+ static const char floatselbordercolor[]  = "#ff0000";
+ static const unsigned int borderpx  = 1;        /* border pixel of windows */
+diff --git dwm/dwm.c dwm/dwm.c
+index f703f22..20e5ef7 100644
+--- dwm/dwm.c
++++ dwm/dwm.c
+@@ -75,7 +75,7 @@
+ 
+ /* enums */
+ enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
+-enum { SchemeNorm, SchemeSel, SchemeLast }; /* color schemes */
++enum { SchemeNorm, SchemeSel, SchemeUrg, SchemeLast }; /* color schemes */
+ enum { NetSupported, NetSystemTray, NetSystemTrayOP, NetSystemTrayOrientation,
+ 	   NetWMName, NetWMState, NetWMFullscreen, NetActiveWindow, NetWMWindowType,
+ 	   NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
+@@ -593,6 +593,9 @@ cleanup(void) {
+ 	drw_clr_free(scheme[SchemeSel].border);
+ 	drw_clr_free(scheme[SchemeSel].bg);
+ 	drw_clr_free(scheme[SchemeSel].fg);
++	drw_clr_free(scheme[SchemeUrg].border);
++	drw_clr_free(scheme[SchemeUrg].bg);
++	drw_clr_free(scheme[SchemeUrg].fg);
+ 	drw_free(drw);
+ 	XSync(dpy, False);
+ 	XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
+@@ -990,9 +993,11 @@ drawbar(Monitor *m) {
+ 	for(i = 0; i < LENGTH(tags); i++) {
+ 		w = TEXTW(tags[i].name);
+ 		drw_setscheme(drw, m->tagset[m->seltags] & 1 << i ? &scheme[SchemeSel] : &scheme[SchemeNorm]);
+-		drw_text(drw, x, 0, w, bh, tags[i].name, urg & 1 << i);
++    if(urg & 1 << i)
++      drw_setscheme(drw, &scheme[SchemeUrg]);
++		drw_text(drw, x, 0, w, bh, tags[i].name, 0);
+ 		drw_rect(drw, x, 0, w, bh, m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
+-		           occ & 1 << i, urg & 1 << i);
++		           occ & 1 << i, 0);
+ 		x += w;
+ 	}
+ 	w = blw = TEXTW(m->ltsymbol);
+@@ -1962,6 +1967,10 @@ setup(void) {
+ 	scheme[SchemeSel].border = drw_clr_create(drw, selbordercolor);
+ 	scheme[SchemeSel].bg = drw_clr_create(drw, selbgcolor);
+ 	scheme[SchemeSel].fg = drw_clr_create(drw, selfgcolor);
++	scheme[SchemeUrg].floatborder = drw_clr_create(drw, floatselbordercolor);
++	scheme[SchemeUrg].border = drw_clr_create(drw, urgentbordercolor);
++	scheme[SchemeUrg].bg = drw_clr_create(drw, urgentbgcolor);
++	scheme[SchemeUrg].fg = drw_clr_create(drw, urgentfgcolor);
+ 	/* init system tray */
+ 	updatesystray();
+ 	/* init bars */
